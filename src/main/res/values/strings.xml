@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Oracle IoT Asset Gateway</string>
+    <!-- Strings related to provisioning -->
+    <string name="prompt_server_url">Server URL</string>
+    <string name="prompt_shared_secret">Shared Secret</string>
+    <string name="action_provision">Apply</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_reset">Reset</string>
+    <string name="error_invalid_server_url">This server URL is invalid</string>
+    <string name="error_invalid_shared_secret">Please provide a valid shared secret</string>
+    <string name="error_field_required">This field is required</string>
+    <!-- Strings related to parameters -->
+    <string name="preference_file_key">com.oracle.iot.sample.preferences</string>
+    <string name="use_provided_bks">use_provided_bks</string>
+    <string name="ta_file_path">ta_file_path</string>
+    <string name="ta_password">ta_password</string>
+    <string name="dm_urn">dm_urn</string>
+    <string name="action_find">Scan Devices</string>
+    <string name="from_download">from_download</string>
+    <string name="cloud_settings">Cloud Settings</string>
+    <string name="options">Options</string>
+    <string name="prov_complete">Provisioning Completed</string>
+
+</resources>

@@ -1,0 +1,16 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_find"
+        android:icon="@drawable/scan"
+        android:title="@string/action_find"
+        app:showAsAction="ifRoom"/>
+
+    <!-- Settings, should always be in the overflow -->
+    <item android:id="@+id/provision_settings"
+        android:icon="@drawable/settings"
+        android:title="@string/cloud_settings"
+        app:showAsAction="never"/>
+
+ </menu>
