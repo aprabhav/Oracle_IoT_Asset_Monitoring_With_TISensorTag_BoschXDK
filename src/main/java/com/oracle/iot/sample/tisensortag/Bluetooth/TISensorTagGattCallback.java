@@ -1,4 +1,4 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Bluetooth;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -6,12 +6,18 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.util.Log;
-import static android.content.ContentValues.TAG;
-import static com.oracle.iot.sample.tisensortag.UIMessageConstants.DEVICE_CONNECTED;
-import static com.oracle.iot.sample.tisensortag.UIMessageConstants.MSG_PROGRESS;
-import static com.oracle.iot.sample.tisensortag.UIMessageConstants.UI_MESSAGE;
 
-public class TISensorTagGattCallback extends BleGattCallback{
+import com.oracle.iot.sample.tisensortag.Util.BroadcastUtil;
+import com.oracle.iot.sample.tisensortag.Device.SensorDevice;
+import com.oracle.iot.sample.tisensortag.Device.SensorInfo;
+import com.oracle.iot.sample.tisensortag.Util.Constants;
+
+import static android.content.ContentValues.TAG;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.DEVICE_CONNECTED;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_PROGRESS;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.UI_MESSAGE;
+
+public class TISensorTagGattCallback extends BleGattCallback {
 
     private Context mContext;
     private SensorDevice mSensorDevice;
@@ -49,7 +55,7 @@ public class TISensorTagGattCallback extends BleGattCallback{
             }
         }
         else {
-            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, UIMessageConstants.MSG_DISMISS, "");
+            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, Constants.MSG_DISMISS, "");
             Log.i(TAG, "All Sensors Enabled");
         }
     }
@@ -71,7 +77,7 @@ public class TISensorTagGattCallback extends BleGattCallback{
 
         }
         else{
-            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, UIMessageConstants.MSG_DISMISS, "");
+            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, Constants.MSG_DISMISS, "");
             Log.i(TAG, "All Sensors Read");
         }
     }
@@ -101,7 +107,7 @@ public class TISensorTagGattCallback extends BleGattCallback{
             }
         }
         else{
-            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, UIMessageConstants.MSG_DISMISS, "");
+            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, Constants.MSG_DISMISS, "");
             Log.i(TAG, "All Sensors Notified");
         }
 
@@ -123,19 +129,20 @@ public class TISensorTagGattCallback extends BleGattCallback{
              * If at any point we disconnect, send a message to clear the weather values
              * out of the UI
              */
-            BroadcastUtil.broadcastUpdate(mContext, UIMessageConstants.UI_MESSAGE, UIMessageConstants.MSG_CLEAR, "");
+            BroadcastUtil.broadcastUpdate(mContext, Constants.UI_MESSAGE, Constants.MSG_CLEAR, "");
         } else if (status != BluetoothGatt.GATT_SUCCESS) {
             /*
              * If there is a failure at any stage, simply disconnect
              */
             gatt.disconnect();
+            BroadcastUtil.broadcastUpdate(mContext, Constants.UI_MESSAGE, Constants.MSG_CLEAR, "");
         }
     }
 
     @Override
     public void onServicesDiscovered(BluetoothGatt gatt, int status) {
         Log.d(TAG, "Services Discovered: "+ status);
-        BroadcastUtil.broadcastUpdate(mContext, UIMessageConstants.UI_MESSAGE, UIMessageConstants.MSG_PROGRESS, "Enabling Sensors...");
+        BroadcastUtil.broadcastUpdate(mContext, Constants.UI_MESSAGE, Constants.MSG_PROGRESS, "Enabling Sensors...");
 
         /*
          * With services discovered, we are going to reset our state machine and start
@@ -150,7 +157,16 @@ public class TISensorTagGattCallback extends BleGattCallback{
 
         for (SensorInfo sensors : mSensorDevice.getSensorInfo()) {
             if (sensors.getDataChar().equals(characteristic.getUuid())) {
-                BroadcastUtil.broadcastUpdate(mContext, UIMessageConstants.SENSOR_CHARACTERISTIC_AVAILABLE, characteristic, sensors.getMessageID());
+                //BroadcastUtil.broadcastUpdate(mContext, Constants.SENSOR_VALUES_CHANGED, characteristic, sensors.getMessageID());
+                mSensorDevice.setSensorAttributeValue(sensors.getMessageID(), characteristic.getValue());
+                BroadcastUtil.broadcastUpdate(mContext, Constants.SENSOR_VALUES_CHANGED, new double[]{
+                        mSensorDevice.getTemperatureSensorValue(),
+                        mSensorDevice.getHumiditySensorValue(),
+                        mSensorDevice.getLightSensorValue(),
+                        mSensorDevice.getPressureSensorValue(),
+                        mSensorDevice.getNetAccelerationSensorValue(),
+                        mSensorDevice.getTiltSensorValue()
+                });
                 setNotifyNextSensor(gatt);
             }
         }
@@ -181,7 +197,15 @@ public class TISensorTagGattCallback extends BleGattCallback{
          */
         for (SensorInfo sensors : mSensorDevice.getSensorInfo()) {
             if (sensors.getDataChar().equals(characteristic.getUuid())) {
-                BroadcastUtil.broadcastUpdate(mContext, UIMessageConstants.SENSOR_CHARACTERISTIC_AVAILABLE, characteristic, sensors.getMessageID());
+                mSensorDevice.setSensorAttributeValue(sensors.getMessageID(), characteristic.getValue());
+                BroadcastUtil.broadcastUpdate(mContext, Constants.SENSOR_VALUES_CHANGED, new double[]{
+                        mSensorDevice.getTemperatureSensorValue(),
+                        mSensorDevice.getHumiditySensorValue(),
+                        mSensorDevice.getLightSensorValue(),
+                        mSensorDevice.getPressureSensorValue(),
+                        mSensorDevice.getNetAccelerationSensorValue(),
+                        mSensorDevice.getTiltSensorValue()
+                });
             }
         }
     }
@@ -203,7 +227,7 @@ public class TISensorTagGattCallback extends BleGattCallback{
             }
         }
         else {
-            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, UIMessageConstants.MSG_DISMISS, "");
+            BroadcastUtil.broadcastUpdate(mContext, UI_MESSAGE, Constants.MSG_DISMISS, "");
             Log.i(TAG, "All Sensors Period Updated");
         }
 
