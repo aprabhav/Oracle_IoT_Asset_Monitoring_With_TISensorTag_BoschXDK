@@ -31,6 +31,8 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 
+import com.oracle.iot.sample.tisensortag.Util.FileManager;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -341,4 +343,3 @@ public class UserInputActivity extends AppCompatActivity {
         }
     }
 }
-
