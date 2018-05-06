@@ -1,4 +1,4 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Util;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -22,12 +22,9 @@ public class BroadcastUtil {
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
     }
 
-    public static void broadcastUpdate(Context context, final String action,
-                                 final BluetoothGattCharacteristic characteristic, final int characteristicType) {
+    public static void broadcastUpdate(Context context, final String action, double[] values) {
         final Intent intent = new Intent(action);
-        intent.putExtra("type", characteristicType);
-        intent.putExtra("characteristicValue", characteristic.getValue());
+        intent.putExtra(Constants.EXTRA_SENSORVALUES, values);
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
     }
-
 }
