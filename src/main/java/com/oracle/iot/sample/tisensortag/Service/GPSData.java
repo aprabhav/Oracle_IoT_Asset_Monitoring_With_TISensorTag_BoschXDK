@@ -1,213 +1,65 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Service;
 
-import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.os.Bundle;
-import android.provider.Settings;
-import android.util.Log;
+import android.os.Looper;
 
-import static android.content.Context.LOCATION_SERVICE;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.oracle.iot.sample.tisensortag.Util.Constants;
 
-public class GPSTracker implements LocationListener {
+public class GPSData {
+    private MutableLiveData<Location> locationLiveData;
+    private FusedLocationProviderClient locationProviderClient = null;
+    private LocationCallback locationCallback;
+    private Context mAppContext;
 
-    private final Context mContext;
 
-    // flag for GPS status
-    boolean isGPSEnabled = false;
+    public GPSData(Context appContext){
 
-    // flag for network status
-    boolean isNetworkEnabled = false;
-
-    // flag for GPS status
-    boolean canGetLocation = false;
-
-    Location location; // location
-    double latitude; // latitude
-    double longitude; // longitude
-
-    // The minimum distance to change Updates in meters
-    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 5; // 5 meters
-
-    // The minimum time between updates in milliseconds
-    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 1; // 1 minute
-
-    // Declaring a Location Manager
-    protected LocationManager locationManager;
-
-    public GPSTracker(Context context) {
-        this.mContext = context;
-        getLocation();
+        mAppContext = appContext;
+        locationLiveData = new MutableLiveData<>();
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                //mLocation = locationResult.getLastLocation();
+                locationLiveData.setValue(locationResult.getLastLocation());
+            }
+        };
+        registerForLocationUpdates();
     }
 
-    public Location getLocation() {
+    public LiveData<Location> getLocation(){
+        return locationLiveData;
+    }
+
+    private void registerForLocationUpdates() {
         try {
-            locationManager = (LocationManager) mContext.getSystemService(LOCATION_SERVICE);
-
-            // getting GPS status
-            isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-
-            // getting network status
-            isNetworkEnabled = locationManager
-                    .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
-            if (!isGPSEnabled && !isNetworkEnabled) {
-                //Location setting is disabled, request permission to enable it
-                final AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-                builder.setTitle("Location Permission");
-                builder.setMessage("The app needs location permissions. Please grant this permission to continue using the features of the app.");
-                builder.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        mContext.startActivity(enableLocationIntent);
-                    }
-                });
-                builder.setNegativeButton(android.R.string.no, null);
-                builder.show();
-            } else {
-                this.canGetLocation = true;
-                // First get location from Network Provider
-                if (isNetworkEnabled) {
-                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, MIN_TIME_BW_UPDATES, MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
-                    Log.d("Network", "Network Enabled");
-                    if (locationManager != null) {
-                        location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-
-                        if (location != null) {
-                            latitude = location.getLatitude();
-                            longitude = location.getLongitude();
-                        }
-                    }
-                }
-
-                // if GPS Enabled get lat/long using GPS Services
-                if (isGPSEnabled) {
-                    if (location == null) {
-                        locationManager.requestLocationUpdates(
-                                LocationManager.GPS_PROVIDER,
-                                MIN_TIME_BW_UPDATES,
-                                MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
-
-                        Log.d("GPS Enabled", "GPS Enabled");
-                        if (locationManager != null) {
-                            location = locationManager
-                                    .getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-                            if (location != null) {
-                                latitude = location.getLatitude();
-                                longitude = location.getLongitude();
-                            }
-                        }
-                    }
-                }
+            if (locationProviderClient == null) {
+                locationProviderClient = LocationServices.getFusedLocationProviderClient(mAppContext);
             }
+            LocationRequest locationRequest = LocationRequest.create();
+            locationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
+            locationRequest.setFastestInterval(Constants.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+            locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+            Looper looper = Looper.myLooper();
+            locationProviderClient.requestLocationUpdates(locationRequest, locationCallback, looper);
+            //locationProviderClient.getLocationAvailability().
 
-        } catch (Exception e) {
+        }catch (SecurityException e) {
             e.printStackTrace();
         }
-
-        return location;
     }
 
-    /**
-     * Stop using GPS listener
-     * Calling this function will stop using GPS in your app
-     * */
-
-    public void stopUsingGPS(){
-        if(locationManager != null){
-            locationManager.removeUpdates(GPSTracker.this);
+    public void removeUpdates() {
+        if (locationProviderClient != null) {
+            locationProviderClient.removeLocationUpdates(locationCallback);
         }
     }
-
-    /**
-     * Function to get latitude
-     * */
-
-    public double getLatitude(){
-        if(location != null){
-            latitude = location.getLatitude();
-        }
-
-        // return latitude
-        return latitude;
-    }
-
-    /**
-     * Function to get longitude
-     * */
-
-    public double getLongitude(){
-        if(location != null){
-            longitude = location.getLongitude();
-        }
-
-        // return longitude
-        return longitude;
-    }
-
-    /**
-     * Function to check GPS/wifi enabled
-     * @return boolean
-     * */
-
-    public boolean canGetLocation() {
-        return this.canGetLocation;
-    }
-
-    /**
-     * Function to show settings alert dialog
-     * On pressing Settings button will launch Settings Options
-     * */
-
-    public void showSettingsAlert(){
-        AlertDialog.Builder alertDialog = new AlertDialog.Builder(mContext);
-
-        // Setting Dialog Title
-        alertDialog.setTitle("GPS is settings");
-
-        // Setting Dialog Message
-        alertDialog.setMessage("GPS is not enabled. Do you want to go to settings menu?");
-
-        // On pressing Settings button
-        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog,int which) {
-                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                mContext.startActivity(intent);
-            }
-        });
-
-        // on pressing cancel button
-        alertDialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
-
-        // Showing Alert Message
-        alertDialog.show();
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-    }
-
 }
