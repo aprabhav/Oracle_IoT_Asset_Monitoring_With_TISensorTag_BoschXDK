@@ -1,10 +1,21 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Device;
 
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.util.Log;
+
+import com.oracle.iot.sample.tisensortag.Util.Constants;
 
 import java.util.UUID;
 
-import static com.oracle.iot.sample.tisensortag.SensorDeviceFactory.TI_DEVICE_NAME;
+import static android.content.ContentValues.TAG;
+import static com.oracle.iot.sample.tisensortag.Device.SensorDeviceFactory.TI_DEVICE_NAME;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_HUMIDITY;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_LIGHT;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_MOVEMENT;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_PRESSURE;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_TEMPERATURE;
 import static java.lang.Math.pow;
 
 
@@ -49,17 +60,14 @@ public class TISensorTag implements SensorDevice {
     private double humiditySensorValue;
     private double pressureSensorValue;
     private double lightSensorValue;
-    private double [] netAccelerationSensorValue;
-    private double magnetometerSensorValue;
-    private double rapidFallValue;
-    private boolean rapidFallAlert;
-
+    private double netAccelerationSensorValue;
+    private double tiltSensorValue;
     private static SensorInfo[] mSensorInfo = new SensorInfo[] {
-            new SensorInfo("Temperature", UIMessageConstants.MSG_TEMPERATURE, TEMPERATURE_SERVICE, TEMPERATURE_CONFIG_CHAR, new byte[] {0x01}, TEMPERATURE_PERIOD_CHAR, new byte[] {0x64}, TEMPERATURE_DATA_CHAR),
-            new SensorInfo("Humidity", UIMessageConstants.MSG_HUMIDITY, HUMIDITY_SERVICE, HUMIDITY_CONFIG_CHAR, new byte[] {0x01},HUMIDITY_PERIOD_CHAR, new byte[] {0x64}, HUMIDITY_DATA_CHAR),
-            new SensorInfo("Luxometer", UIMessageConstants.MSG_LIGHT, LUXOMETER_SERVICE, LUXOMETER_CONFIG_CHAR, new byte[] {0x01}, LUXOMETER_PERIOD_CHAR, new byte[] {0x64}, LUXOMETER_DATA_CHAR),
-            new SensorInfo("Pressure", UIMessageConstants.MSG_PRESSURE, PRESSURE_SERVICE, PRESSURE_CONFIG_CHAR, new byte[] {0x01}, PRESSURE_PERIOD_CHAR, new byte[] {0x64}, PRESSURE_DATA_CHAR),
-            new SensorInfo("Movement", UIMessageConstants.MSG_MOVEMENT, MOVEMENT_SERVICE, MOVEMENT_CONFIG_CHAR, new byte[] {0x78,0x02}, MOVEMENT_PERIOD_CHAR, new byte[] {0x0A}, MOVEMENT_DATA_CHAR)
+            new SensorInfo("Temperature", Constants.MSG_TEMPERATURE, TEMPERATURE_SERVICE, TEMPERATURE_CONFIG_CHAR, new byte[] {0x01}, TEMPERATURE_PERIOD_CHAR, new byte[] {0x64}, TEMPERATURE_DATA_CHAR),
+            new SensorInfo("Humidity", Constants.MSG_HUMIDITY, HUMIDITY_SERVICE, HUMIDITY_CONFIG_CHAR, new byte[] {0x01},HUMIDITY_PERIOD_CHAR, new byte[] {0x64}, HUMIDITY_DATA_CHAR),
+            new SensorInfo("Luxometer", Constants.MSG_LIGHT, LUXOMETER_SERVICE, LUXOMETER_CONFIG_CHAR, new byte[] {0x01}, LUXOMETER_PERIOD_CHAR, new byte[] {0x64}, LUXOMETER_DATA_CHAR),
+            new SensorInfo("Pressure", Constants.MSG_PRESSURE, PRESSURE_SERVICE, PRESSURE_CONFIG_CHAR, new byte[] {0x01}, PRESSURE_PERIOD_CHAR, new byte[] {0x64}, PRESSURE_DATA_CHAR),
+            new SensorInfo("Movement", Constants.MSG_MOVEMENT, MOVEMENT_SERVICE, MOVEMENT_CONFIG_CHAR, new byte[] {0x78,0x02}, MOVEMENT_PERIOD_CHAR, new byte[] {0x0A}, MOVEMENT_DATA_CHAR)
     };
 
 
@@ -68,10 +76,8 @@ public class TISensorTag implements SensorDevice {
         humiditySensorValue = 0;
         pressureSensorValue = 0;
         lightSensorValue = 0;
-        netAccelerationSensorValue = new double[2];
-        magnetometerSensorValue = 0;
-        rapidFallValue = 0;
-        rapidFallAlert = false;
+        netAccelerationSensorValue = 0;
+        tiltSensorValue = 0;
     }
 
     public String getDeviceName(){
@@ -85,6 +91,41 @@ public class TISensorTag implements SensorDevice {
     @Override
     public UUID getConfigDescriptor() {
         return CONFIG_DESCRIPTOR;
+    }
+
+    public void setSensorAttributeValue(final int characteristicType, final byte[] characteristicValue) {
+        switch (characteristicType){
+            case MSG_HUMIDITY:
+                if (characteristicValue == null) {
+                    Log.w(TAG, "Error obtaining humidity value");
+                } else
+                    extractHumidity(characteristicValue);
+                break;
+            case MSG_PRESSURE:
+                if (characteristicValue == null) {
+                    Log.w(TAG, "Error obtaining pressure value");
+                } else
+                    extractBarometer(characteristicValue);
+                break;
+            case MSG_TEMPERATURE:
+                if (characteristicValue == null) {
+                    Log.w(TAG, "Error obtaining temperature value");
+                } else
+                    extractTemperature(characteristicValue);
+                break;
+            case MSG_LIGHT:
+                if (characteristicValue == null) {
+                    Log.w(TAG, "Error obtaining light value");
+                } else
+                    extractLight(characteristicValue);
+                break;
+            case MSG_MOVEMENT:
+                if (characteristicValue == null) {
+                    Log.w(TAG, "Error obtaining movement value");
+                } else
+                    extractMovement(characteristicValue);
+                break;
+        }
     }
 
     public double getTemperatureSensorValue() {
@@ -103,18 +144,11 @@ public class TISensorTag implements SensorDevice {
         return humiditySensorValue;
     }
 
-    public double [] getNetAccelerationSensorValue () { return netAccelerationSensorValue;}
+    public double getNetAccelerationSensorValue () { return netAccelerationSensorValue;}
 
-    public double getMagnetometerSensorValue () {return magnetometerSensorValue;}
+    public double getTiltSensorValue () { return tiltSensorValue;}
 
-    public boolean isRapidFallAlert () { return rapidFallAlert;}
-
-    public double readAndClearRapidFallAlert () {
-            rapidFallAlert = false;
-            return rapidFallValue;
-    }
-
-    public double extractHumidity(byte[] c) {
+    private void extractHumidity(byte[] c) {
         /*
         int a = getUnsignedValue(c, 2);
         // bits [1..0] are status bits and need to be cleared
@@ -123,10 +157,9 @@ public class TISensorTag implements SensorDevice {
         */
         int rawHum = getUnsignedValue(c, 2);
         humiditySensorValue = ((double)rawHum / 65536)*100;
-        return humiditySensorValue;
     }
 
-    public double extractTemperature(byte[] c) {
+    private void extractTemperature(byte[] c) {
 
         /*
         double ambient = shortUnsignedAtOffset(c, 2).doubleValue()/128.0;
@@ -147,10 +180,9 @@ public class TISensorTag implements SensorDevice {
         double SCALE_LSB = 0.03125;
         Integer it = (getUnsignedValue(c, 2)) >> 2;
         temperatureSensorValue = it * SCALE_LSB;
-        return temperatureSensorValue;
     }
 
-    public double extractLight(byte[] c) {
+    private void extractLight(byte[] c) {
 
         int mantissa;
         int exponent;
@@ -164,23 +196,17 @@ public class TISensorTag implements SensorDevice {
         double light = (mantissa * magnitude);
 
         lightSensorValue = light/100.0f;
-        return lightSensorValue;
-
     }
 
-
-
-    public double extractBarometer(byte[] c) {
-
+    private void extractBarometer(byte[] c) {
         pressureSensorValue = shortUnsignedThreeBytesAtOffset(c, 3)/100; //Pressure in hPa or mBar
-        return pressureSensorValue;
     }
 
     /*
-     * This method returns both the NetAcceleration (netAccelerationSensorValue[0])
+     * This method calculates both the NetAcceleration (netAccelerationSensorValue[0])
      * and Tilt (netAccelerationSensorValue[1])
      */
-    public double [] extractMovement (byte[] c) {
+    private void extractMovement (byte[] c) {
 
         byte[] value = c;
 
@@ -190,18 +216,12 @@ public class TISensorTag implements SensorDevice {
         double y = ((value[9]<<8) + value[8])/SCALE;
         double z = ((((value[11]<<8) + value[10]) / SCALE)* -1);
 
-        netAccelerationSensorValue [0] = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) +  Math.pow(z, 2));
-        if (netAccelerationSensorValue [0] < 0.8) {
-            rapidFallAlert = true;
-            rapidFallValue = netAccelerationSensorValue [0];
-        }
-
+        netAccelerationSensorValue = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) +  Math.pow(z, 2));
         //netAccelerationSensorValue [1] = Math.atan(x/(Math.sqrt(Math.pow(y, 2) +  Math.pow(z, 2))));
-        netAccelerationSensorValue[1] = Math.toDegrees(Math.asin(Math.min(Math.max(y, -1.0), 1.0)));
-
-        return netAccelerationSensorValue;
+        tiltSensorValue = Math.toDegrees(Math.asin(Math.min(Math.max(y, -1.0), 1.0)));
     }
 
+    /*
     public double extractMagnetism (byte[] c) {
         final float SCALE = (float) (32768 / 4912);
 
@@ -211,6 +231,7 @@ public class TISensorTag implements SensorDevice {
         magnetometerSensorValue = Math.sqrt(Math.pow(magX, 2) + Math.pow(magY, 2) +  Math.pow(magZ, 2));
         return magnetometerSensorValue;
     }
+    */
     
     /**
      * Gyroscope, Magnetometer, IR temperature
