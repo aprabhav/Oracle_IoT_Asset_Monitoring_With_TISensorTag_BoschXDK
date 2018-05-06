@@ -1,6 +1,13 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Device;
 
 import android.content.Context;
+
+import com.oracle.iot.sample.tisensortag.Bluetooth.BleGattCallback;
+import com.oracle.iot.sample.tisensortag.Bluetooth.BoschXDKGattCallback;
+import com.oracle.iot.sample.tisensortag.Bluetooth.TISensorTagGattCallback;
+import com.oracle.iot.sample.tisensortag.Device.BoschXDK;
+import com.oracle.iot.sample.tisensortag.Device.SensorDevice;
+import com.oracle.iot.sample.tisensortag.Device.TISensorTag;
 
 public class SensorDeviceFactory {
 
