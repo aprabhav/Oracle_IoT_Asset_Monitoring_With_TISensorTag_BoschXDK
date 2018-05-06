@@ -6,8 +6,7 @@
  * directory for license terms.  You may choose either license, or both.
  */
 
-package com.oracle.iot.sample.tisensortag;
-
+package com.oracle.iot.sample.tisensortag.Util;
 
 import android.app.Activity;
 import android.app.AlertDialog;
