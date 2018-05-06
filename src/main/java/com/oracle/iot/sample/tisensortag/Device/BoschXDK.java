@@ -1,15 +1,27 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Device;
 
 
+import android.app.Application;
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.content.Context;
+import android.util.Log;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import com.oracle.iot.sample.tisensortag.MainActivity;
+import com.oracle.iot.sample.tisensortag.Util.BroadcastUtil;
+import com.oracle.iot.sample.tisensortag.Util.Constants;
+
 import java.util.UUID;
 
-import static com.oracle.iot.sample.tisensortag.SensorDeviceFactory.BOSCH_XDK_NAME;
-import static com.oracle.iot.sample.tisensortag.SensorDeviceFactory.TI_DEVICE_NAME;
-import static java.lang.Math.pow;
+import static android.content.ContentValues.TAG;
+import static com.oracle.iot.sample.tisensortag.Device.SensorDeviceFactory.BOSCH_XDK_NAME;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_HUMIDITY;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_LIGHT;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_MOVEMENT;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_PRESSURE;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_TEMPERATURE;
+import static com.oracle.iot.sample.tisensortag.Util.Constants.MSG_XDK;
 
 public class BoschXDK implements SensorDevice {
 
@@ -25,14 +37,10 @@ public class BoschXDK implements SensorDevice {
     private double humiditySensorValue;
     private double pressureSensorValue;
     private double lightSensorValue;
-    private double [] netAccelerationSensorValue;
-    private double magnetometerSensorValue;
-    private double rapidFallValue;
-    private boolean rapidFallAlert;
-    private double previousAngle = 0;
-
+    private double netAccelerationSensorValue;
+    private double tiltSensorValue;
     private static SensorInfo[] mSensorInfo = new SensorInfo[] {
-            new SensorInfo("xdk", UIMessageConstants.MSG_XDK, ALPWISE_SERVICE, ALPWISE_CONFIG_CHAR, new byte[]{0x73,0x74,0x61,0x72,0x74}, ALPWISE_PERIOD_CHAR, new byte[]{0x00}, ALPWISE_DATA_CHAR),
+            new SensorInfo("xdk", Constants.MSG_XDK, ALPWISE_SERVICE, ALPWISE_CONFIG_CHAR, new byte[]{0x73,0x74,0x61,0x72,0x74}, ALPWISE_PERIOD_CHAR, new byte[]{0x00}, ALPWISE_DATA_CHAR),
       };
 
 
@@ -41,10 +49,8 @@ public class BoschXDK implements SensorDevice {
         humiditySensorValue = 0;
         pressureSensorValue = 0;
         lightSensorValue = 0;
-        netAccelerationSensorValue = new double[2];
-        magnetometerSensorValue = 0;
-        rapidFallValue = 0;
-        rapidFallAlert = false;
+        netAccelerationSensorValue = 0;
+        tiltSensorValue = 0;
     }
 
     public String getDeviceName(){
@@ -76,69 +82,59 @@ public class BoschXDK implements SensorDevice {
         return humiditySensorValue;
     }
 
-    public double [] getNetAccelerationSensorValue () { return netAccelerationSensorValue;}
+    public double getNetAccelerationSensorValue () {return netAccelerationSensorValue;}
 
-    public double getMagnetometerSensorValue () {return magnetometerSensorValue;}
+    public double getTiltSensorValue () {return tiltSensorValue;}
 
-    public boolean isRapidFallAlert () { return rapidFallAlert;}
-
-    public double readAndClearRapidFallAlert () {
-        rapidFallAlert = false;
-        return rapidFallValue;
+    public void setSensorAttributeValue(final int characteristicType, final byte[] characteristicValue) {
+        if(characteristicType == MSG_XDK){
+            if (characteristicValue == null) {
+                Log.w(TAG, "Error obtaining Bosch XDK sensor values");
+            } else {
+                extractHumidity(characteristicValue);
+                extractBarometer(characteristicValue);
+                extractLight(characteristicValue);
+                extractTemperature(characteristicValue);
+                extractMovement(characteristicValue);
+            }
+        }
     }
 
-    public double extractHumidity(byte[] c) {
-
+    private void extractHumidity(byte[] c) {
         humiditySensorValue = getUnsignedValue(c, 12) * 1.0f;
-        return humiditySensorValue;
     }
 
-    public double extractTemperature(byte[] c) {
-
+    private void extractTemperature(byte[] c) {
         temperatureSensorValue = getSignedValue(c, 10) * 1.0f;
-        return temperatureSensorValue;
     }
 
-    public double extractLight(byte[] c) {
-
+    private void extractLight(byte[] c) {
         lightSensorValue = getUnsignedValue(c, 6) * 1.0f;
-        return lightSensorValue;
     }
 
-    public double extractBarometer(byte[] c) {
-
+    private void extractBarometer(byte[] c) {
         pressureSensorValue = getUnsignedValue(c, 8) * 1.0f;
-        return pressureSensorValue;
-
     }
 
     /*
-     * This method returns both the NetAcceleration (netAccelerationSensorValue[0])
+     * This method calculates both the NetAcceleration (netAccelerationSensorValue[0])
      * and Tilt (netAccelerationSensorValue[1])
      */
-    public double [] extractMovement (byte[] c) {
-
+    private void extractMovement (byte[] c) {
         double x = getSignedValue(c, 0) * 1.0f;
         double y = getSignedValue(c, 2) * 1.0f;
         double z = getSignedValue(c, 4) * 1.0f;
 
-        netAccelerationSensorValue [0] = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) +  Math.pow(z, 2));
-        if (netAccelerationSensorValue [0] < 0.8) {
-            rapidFallAlert = true;
-            rapidFallValue = netAccelerationSensorValue [0];
-        }
-
-        netAccelerationSensorValue[1] = Math.toDegrees(Math.asin(Math.min(Math.max(y, -1.0), 1.0)));
+        netAccelerationSensorValue = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) +  Math.pow(z, 2));
+        tiltSensorValue = Math.toDegrees(Math.asin(Math.min(Math.max(y, -1.0), 1.0)));
         /*
         double angleUsingAccel = Math.toDegrees(Math.asin(Math.min(Math.max(y, -1.0), 1.0)));
         double rmsGyroValue = getUnsignedValue(c, 14) * 1.0f;
         netAccelerationSensorValue[1] = computeTiltAngleUsingGyroAndAccel(angleUsingAccel, rmsGyroValue);
         */
-        return netAccelerationSensorValue;
     }
 
-    public double extractMagnetism (byte[] c) {
-        return magnetometerSensorValue;
+    public void extractMagnetism (byte[] c) {
     }
 
     /**
