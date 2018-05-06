@@ -1,4 +1,4 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Device;
 
 import java.util.UUID;
 
