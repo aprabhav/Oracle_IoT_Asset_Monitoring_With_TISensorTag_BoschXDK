@@ -1,14 +1,15 @@
-package com.oracle.iot.sample.tisensortag;
+package com.oracle.iot.sample.tisensortag.Bluetooth;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
-import android.content.Intent;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.oracle.iot.sample.tisensortag.Util.BroadcastUtil;
+import com.oracle.iot.sample.tisensortag.Device.SensorDeviceFactory;
+import com.oracle.iot.sample.tisensortag.Util.Constants;
+
 import static android.content.ContentValues.TAG;
-import static com.oracle.iot.sample.tisensortag.UIMessageConstants.DEVICE_AVAILABLE;
 
 public class BleScanCallback implements BluetoothAdapter.LeScanCallback {
 
@@ -32,9 +33,8 @@ public class BleScanCallback implements BluetoothAdapter.LeScanCallback {
         String deviceName = device.getName();
 
         if (isSupportedDevice(deviceType, deviceName)){
-            BroadcastUtil.broadcastUpdate(mContext, DEVICE_AVAILABLE, device);
+            BroadcastUtil.broadcastUpdate(mContext, Constants.DEVICE_AVAILABLE, device);
         }
-
     }
 
     private boolean isSupportedDevice(int deviceType, String deviceName) {
@@ -43,9 +43,6 @@ public class BleScanCallback implements BluetoothAdapter.LeScanCallback {
                 return true;
             }
         }
-
         return false;
     }
-
 }
-
