@@ -33,9 +33,6 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static java.lang.Math.abs;
-
-
 public class SensorDeviceTrackerService extends LifecycleService {
 
     private Timer timer;
